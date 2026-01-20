@@ -1,0 +1,185 @@
+{
+  "bindings" : [
+    {
+      "action" : {
+        "bundleId" : "com.mitchellh.ghostty",
+        "type" : "toggleApp"
+      },
+      "id" : "toggle-ghostty",
+      "key" : "e",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "bundleId" : "com.tinyspeck.slackmacgap",
+        "type" : "toggleApp"
+      },
+      "id" : "toggle-slack",
+      "key" : "r",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "bundleId" : "com.apple.iCal",
+        "type" : "toggleApp"
+      },
+      "id" : "toggle-calendar",
+      "key" : "a",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "bundleId" : "com.apple.reminders",
+        "type" : "toggleApp"
+      },
+      "id" : "toggle-reminders",
+      "key" : "s",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "bundleId" : "com.apple.Notes",
+        "type" : "toggleApp"
+      },
+      "id" : "toggle-notes",
+      "key" : "d",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "bundleId" : "com.apple.finder",
+        "type" : "toggleApp"
+      },
+      "id" : "toggle-finder",
+      "key" : "f",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "profile" : "Personal",
+        "type" : "toggleBraveProfile"
+      },
+      "id" : "toggle-brave-personal",
+      "key" : "q",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "profile" : "Bossa",
+        "type" : "toggleBraveProfile"
+      },
+      "id" : "toggle-brave-bossa",
+      "key" : "w",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "type" : "moveToNextScreen"
+      },
+      "id" : "next-screen",
+      "key" : "space",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "type" : "cycleWindows"
+      },
+      "id" : "cycle",
+      "key" : "tab",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "type" : "toggleFloat"
+      },
+      "id" : "toggle-float",
+      "key" : "`",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "index" : 0,
+        "type" : "focusDisplay"
+      },
+      "id" : "focus-display-1",
+      "key" : "1",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    },
+    {
+      "action" : {
+        "index" : 1,
+        "type" : "focusDisplay"
+      },
+      "id" : "focus-display-2",
+      "key" : "2",
+      "modifiers" : [
+        "cmd",
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    }
+  ],
+  "gap" : 10,
+  "useBuiltInHyper" : true
+}
