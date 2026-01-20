@@ -131,7 +131,7 @@ struct Config: Codable {
     }
 
     static let configPath = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".config/hyperwm/config.json")
+        .appendingPathComponent("Projects/bless/hyperwm/config.json")
 
     static func load() -> Config {
         guard FileManager.default.fileExists(atPath: configPath.path) else {
