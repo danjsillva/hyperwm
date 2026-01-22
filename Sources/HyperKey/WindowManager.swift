@@ -784,21 +784,64 @@ class WindowManager {
             }
         }
 
-        // Use AppleScript to open Safari with specific profile
-        let script = """
-            tell application "Safari"
-                activate
-                make new document with properties {profile:"\(profile)"}
-            end tell
-            """
+        // Open new Safari window with profile via menu: File → "New {profile} Window"
+        if let safariApp = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == bundleId }) {
+            safariApp.activate(options: [.activateIgnoringOtherApps])
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
-        try? task.run()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.clickSafariNewProfileWindow(pid: safariApp.processIdentifier, profile: profile, screen: screen)
+            }
+        } else if let safariURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            NSWorkspace.shared.openApplication(at: safariURL, configuration: NSWorkspace.OpenConfiguration()) { app, error in
+                guard let app = app else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.clickSafariNewProfileWindow(pid: app.processIdentifier, profile: profile, screen: screen)
+                }
+            }
+        }
+    }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.launchDelay) { [weak self] in
-            self?.scheduleRetile()
+    private func clickSafariNewProfileWindow(pid: pid_t, profile: String, screen: NSScreen) {
+        let app = AXUIElementCreateApplication(pid)
+
+        // Get menu bar
+        var menuBarRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &menuBarRef) == .success,
+              let menuBar = menuBarRef else { return }
+
+        // Get menu bar items (Apple, Safari, File, Edit, ...)
+        var menuBarItemsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(menuBar as! AXUIElement, kAXChildrenAttribute as CFString, &menuBarItemsRef) == .success,
+              let menuBarItems = menuBarItemsRef as? [AXUIElement] else { return }
+
+        // Find "File" menu (index 2, after Apple and Safari menus)
+        guard menuBarItems.count > 2 else { return }
+        let fileMenu = menuBarItems[2]
+
+        // Get File menu's submenu
+        var fileSubmenuRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(fileMenu, kAXChildrenAttribute as CFString, &fileSubmenuRef) == .success,
+              let fileSubmenus = fileSubmenuRef as? [AXUIElement],
+              let fileSubmenu = fileSubmenus.first else { return }
+
+        // Get menu items
+        var menuItemsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(fileSubmenu, kAXChildrenAttribute as CFString, &menuItemsRef) == .success,
+              let menuItems = menuItemsRef as? [AXUIElement] else { return }
+
+        // Find "New {profile} Window" menu item
+        let targetTitle = "New \(profile) Window"
+        for item in menuItems {
+            var titleRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleRef)
+            if let title = titleRef as? String, title == targetTitle {
+                AXUIElementPerformAction(item, kAXPressAction as CFString)
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + Timing.launchDelay) { [weak self] in
+                    self?.scheduleRetile()
+                }
+                return
+            }
         }
     }
 
