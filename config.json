@@ -86,10 +86,10 @@
     },
     {
       "action" : {
-        "profile" : "Personal",
-        "type" : "toggleBraveProfile"
+        "profile" : "P",
+        "type" : "toggleSafariProfile"
       },
-      "id" : "toggle-brave-personal",
+      "id" : "toggle-safari-personal",
       "key" : "q",
       "modifiers" : [
         "cmd",
@@ -100,10 +100,10 @@
     },
     {
       "action" : {
-        "profile" : "Bossa",
-        "type" : "toggleBraveProfile"
+        "profile" : "B",
+        "type" : "toggleSafariProfile"
       },
-      "id" : "toggle-brave-bossa",
+      "id" : "toggle-safari-work",
       "key" : "w",
       "modifiers" : [
         "cmd",

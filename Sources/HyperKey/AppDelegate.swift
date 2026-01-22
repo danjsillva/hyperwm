@@ -423,6 +423,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         case .toggleBraveProfile(let profile):
             windowManager.toggleBraveProfile(profile: profile)
 
+        case .toggleSafariProfile(let profile):
+            windowManager.toggleSafariProfile(profile: profile)
+
         case .cycleWindows:
             windowManager.cycleWindows()
 

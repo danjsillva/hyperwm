@@ -67,6 +67,7 @@ struct Config: Codable {
     enum Action: Codable {
         case toggleApp(bundleId: String)
         case toggleBraveProfile(profile: String)
+        case toggleSafariProfile(profile: String)
         case cycleWindows
         case moveToNextScreen
         case toggleLayoutMode
@@ -88,6 +89,9 @@ struct Config: Codable {
                 try container.encode(bundleId, forKey: .bundleId)
             case .toggleBraveProfile(let profile):
                 try container.encode("toggleBraveProfile", forKey: .type)
+                try container.encode(profile, forKey: .profile)
+            case .toggleSafariProfile(let profile):
+                try container.encode("toggleSafariProfile", forKey: .type)
                 try container.encode(profile, forKey: .profile)
             case .cycleWindows:
                 try container.encode("cycleWindows", forKey: .type)
@@ -113,6 +117,9 @@ struct Config: Codable {
             case "toggleBraveProfile":
                 let profile = try container.decode(String.self, forKey: .profile)
                 self = .toggleBraveProfile(profile: profile)
+            case "toggleSafariProfile":
+                let profile = try container.decode(String.self, forKey: .profile)
+                self = .toggleSafariProfile(profile: profile)
             case "cycleWindows":
                 self = .cycleWindows
             case "moveToNextScreen":
@@ -179,11 +186,11 @@ struct Config: Codable {
                 Binding(id: "toggle-finder", key: "f", modifiers: hyper,
                        action: .toggleApp(bundleId: "com.apple.finder")),
 
-                // Brave profiles (uses profile NAME, not directory)
-                Binding(id: "toggle-brave-personal", key: "q", modifiers: hyper,
-                       action: .toggleBraveProfile(profile: "Personal")),
-                Binding(id: "toggle-brave-bossa", key: "w", modifiers: hyper,
-                       action: .toggleBraveProfile(profile: "Bossa")),
+                // Safari profiles
+                Binding(id: "toggle-safari-personal", key: "q", modifiers: hyper,
+                       action: .toggleSafariProfile(profile: "P")),
+                Binding(id: "toggle-safari-work", key: "w", modifiers: hyper,
+                       action: .toggleSafariProfile(profile: "B")),
 
                 // Window management
                 Binding(id: "next-screen", key: "space", modifiers: hyper,

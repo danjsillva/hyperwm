@@ -694,6 +694,114 @@ class WindowManager {
         }
     }
 
+    // MARK: - Toggle Safari Profile
+
+    func toggleSafariProfile(profile: String) {
+        let targetScreen = currentScreen
+        let bundleId = "com.apple.Safari"
+
+        guard let safariApp = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier == bundleId
+        }) else {
+            launchSafariProfile(profile: profile, on: targetScreen)
+            return
+        }
+
+        // Get all Safari windows
+        let appElement = AXUIElementCreateApplication(safariApp.processIdentifier)
+        var windowsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+              let allSafariWindows = windowsRef as? [AXUIElement] else {
+            launchSafariProfile(profile: profile, on: targetScreen)
+            return
+        }
+
+        // Find the window for THIS profile
+        // Safari format: "Page Title — Profile Name" or "Profile Name — Page Title"
+        var profileWindow: AXUIElement?
+
+        for window in allSafariWindows {
+            guard isStandardWindow(window) else { continue }
+
+            var titleRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
+            let title = (titleRef as? String) ?? ""
+
+            // Safari uses em-dash (—) as separator
+            if title.contains(" — \(profile)") || title.hasPrefix("\(profile) — ") || title == profile {
+                profileWindow = window
+                break
+            }
+        }
+
+        guard let targetWindow = profileWindow else {
+            launchSafariProfile(profile: profile, on: targetScreen)
+            return
+        }
+
+        // Check if this profile is currently focused
+        let isProfileFocused: Bool = {
+            guard safariApp.isActive, let focused = getFocusedWindow() else { return false }
+            var focusedTitleRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(focused, kAXTitleAttribute as CFString, &focusedTitleRef)
+            let focusedTitle = (focusedTitleRef as? String) ?? ""
+            return focusedTitle.contains(" — \(profile)") || focusedTitle.hasPrefix("\(profile) — ") || focusedTitle == profile
+        }()
+
+        if isProfileFocused {
+            safariApp.hide()
+        } else {
+            if safariApp.isHidden { safariApp.unhide() }
+            maximizeWindowOnScreen(targetWindow, screen: targetScreen)
+            AXUIElementPerformAction(targetWindow, kAXRaiseAction as CFString)
+            safariApp.activate(options: [.activateIgnoringOtherApps])
+        }
+        scheduleRetile()
+    }
+
+    private func launchSafariProfile(profile: String, on screen: NSScreen) {
+        let bundleId = "com.apple.Safari"
+        if let safariApp = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == bundleId }) {
+            let appElement = AXUIElementCreateApplication(safariApp.processIdentifier)
+            var windowsRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+               let windows = windowsRef as? [AXUIElement] {
+                for window in windows {
+                    var titleRef: CFTypeRef?
+                    AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
+                    let title = (titleRef as? String) ?? ""
+
+                    let isProfileWindow = title.contains(" — \(profile)") || title.hasPrefix("\(profile) — ") || title == profile
+                    if isProfileWindow && isMinimized(window) {
+                        AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, false as CFTypeRef)
+                        maximizeWindowOnScreen(window, screen: screen)
+                        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+                        safariApp.activate(options: [.activateIgnoringOtherApps])
+                        scheduleRetile()
+                        return
+                    }
+                }
+            }
+        }
+
+        // Use AppleScript to open Safari with specific profile
+        let script = """
+            tell application "Safari"
+                activate
+                make new document with properties {profile:"\(profile)"}
+            end tell
+            """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
+        try? task.run()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.launchDelay) { [weak self] in
+            self?.scheduleRetile()
+        }
+    }
+
     // MARK: - Move to Other Display
 
     func moveToOtherDisplay(gap: Int) {
