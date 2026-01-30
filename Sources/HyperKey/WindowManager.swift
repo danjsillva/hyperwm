@@ -696,6 +696,11 @@ class WindowManager {
 
     // MARK: - Toggle Safari Profile
 
+    private func isSafariProfileWindow(_ title: String, profile: String) -> Bool {
+        // Safari format: "P — Page Title" (profile at start with em-dash)
+        return title.hasPrefix("\(profile) — ")
+    }
+
     func toggleSafariProfile(profile: String) {
         let targetScreen = currentScreen
         let bundleId = "com.apple.Safari"
@@ -717,7 +722,6 @@ class WindowManager {
         }
 
         // Find the window for THIS profile
-        // Safari format: "Page Title — Profile Name" or "Profile Name — Page Title"
         var profileWindow: AXUIElement?
 
         for window in allSafariWindows {
@@ -727,8 +731,7 @@ class WindowManager {
             AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
             let title = (titleRef as? String) ?? ""
 
-            // Safari uses em-dash (—) as separator
-            if title.contains(" — \(profile)") || title.hasPrefix("\(profile) — ") || title == profile {
+            if isSafariProfileWindow(title, profile: profile) {
                 profileWindow = window
                 break
             }
@@ -739,19 +742,24 @@ class WindowManager {
             return
         }
 
-        // Check if this profile is currently focused
-        let isProfileFocused: Bool = {
-            guard safariApp.isActive, let focused = getFocusedWindow() else { return false }
+        // Check if THIS profile window is currently focused
+        var isThisWindowFocused = false
+        if safariApp.isActive, let focused = getFocusedWindow() {
             var focusedTitleRef: CFTypeRef?
             AXUIElementCopyAttributeValue(focused, kAXTitleAttribute as CFString, &focusedTitleRef)
             let focusedTitle = (focusedTitleRef as? String) ?? ""
-            return focusedTitle.contains(" — \(profile)") || focusedTitle.hasPrefix("\(profile) — ") || focusedTitle == profile
-        }()
+            isThisWindowFocused = isSafariProfileWindow(focusedTitle, profile: profile)
+        }
 
-        if isProfileFocused {
-            safariApp.hide()
+        if isThisWindowFocused {
+            // This profile is focused - minimize just this window (not entire app)
+            AXUIElementSetAttributeValue(targetWindow, kAXMinimizedAttribute as CFString, true as CFTypeRef)
         } else {
+            // Focus this profile window
             if safariApp.isHidden { safariApp.unhide() }
+            if isMinimized(targetWindow) {
+                AXUIElementSetAttributeValue(targetWindow, kAXMinimizedAttribute as CFString, false as CFTypeRef)
+            }
             maximizeWindowOnScreen(targetWindow, screen: targetScreen)
             AXUIElementPerformAction(targetWindow, kAXRaiseAction as CFString)
             safariApp.activate(options: [.activateIgnoringOtherApps])
@@ -771,8 +779,7 @@ class WindowManager {
                     AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
                     let title = (titleRef as? String) ?? ""
 
-                    let isProfileWindow = title.contains(" — \(profile)") || title.hasPrefix("\(profile) — ") || title == profile
-                    if isProfileWindow && isMinimized(window) {
+                    if isSafariProfileWindow(title, profile: profile) && isMinimized(window) {
                         AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, false as CFTypeRef)
                         maximizeWindowOnScreen(window, screen: screen)
                         AXUIElementPerformAction(window, kAXRaiseAction as CFString)
@@ -1155,11 +1162,10 @@ class WindowManager {
         AXUIElementGetPid(b, &pidB)
         if pidA != pidB { return false }
 
-        // Compare by title for same-app windows (handles Brave profiles)
-        var titleA: CFTypeRef?, titleB: CFTypeRef?
-        AXUIElementCopyAttributeValue(a, kAXTitleAttribute as CFString, &titleA)
-        AXUIElementCopyAttributeValue(b, kAXTitleAttribute as CFString, &titleB)
-        return (titleA as? String) == (titleB as? String)
+        // Compare by position (titles change as user navigates)
+        let frameA = getWindowFrame(a)
+        let frameB = getWindowFrame(b)
+        return frameA.origin.x == frameB.origin.x && frameA.origin.y == frameB.origin.y
     }
 
     private func getFocusedWindow() -> AXUIElement? {
