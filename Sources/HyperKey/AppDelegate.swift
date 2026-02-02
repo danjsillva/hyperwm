@@ -92,7 +92,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Toggle options (grouped first)
         let borderItem = NSMenuItem(title: "Show Active Window Border", action: #selector(toggleBorder), keyEquivalent: "")
-        borderItem.state = .on
+        borderItem.state = .off
         menu.addItem(borderItem)
 
         let hyperItem = NSMenuItem(title: "Use Built-In Hyper (Caps Lock)", action: #selector(toggleBuiltInHyper), keyEquivalent: "")
@@ -119,7 +119,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Gaps submenu
         let gapsMenu = NSMenu()
-        for gap in [0, 5, 10, 15, 20] {
+        for gap in [0, 8, 16, 24, 32] {
             let item = NSMenuItem(title: gap == 0 ? "None (0)" : "\(gap)px", action: #selector(setGap(_:)), keyEquivalent: "")
             item.tag = gap
             item.state = gap == config.gap ? .on : .off
@@ -345,7 +345,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Apply all settings
         windowManager.gap = config.gap
-        windowManager.borderEnabled = true
+        windowManager.borderEnabled = false
         windowManager.focusFollowsMouse = false
         windowManager.setLayoutModeForAllDisplays(.full)
         hotkeyManager.useBuiltInHyper = config.useBuiltInHyper

@@ -34,7 +34,7 @@ enum LayoutMode {
 
 class WindowManager {
     private var modePerDisplay: [Int: LayoutMode] = [:]  // Layout mode per display index
-    var gap: Int = 10
+    var gap: Int = 16
 
     func getMode(forDisplay index: Int) -> LayoutMode {
         modePerDisplay[index] ?? .full
@@ -53,7 +53,7 @@ class WindowManager {
         }) else { return 0 }
         return NSScreen.screens.firstIndex(of: focusedScreen) ?? 0
     }
-    var borderEnabled: Bool = true {
+    var borderEnabled: Bool = false {
         didSet {
             if borderEnabled {
                 updateBorder()

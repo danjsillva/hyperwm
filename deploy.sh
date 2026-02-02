@@ -17,7 +17,9 @@ fi
 
 # Bundle
 mkdir -p "$APP_PATH/Contents/MacOS"
+mkdir -p "$APP_PATH/Contents/Resources"
 cp .build/release/$APP_NAME "$APP_PATH/Contents/MacOS/"
+cp "$PROJECT_DIR/assets/AppIcon.icns" "$APP_PATH/Contents/Resources/"
 
 cat > "$APP_PATH/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -30,6 +32,8 @@ cat > "$APP_PATH/Contents/Info.plist" << EOF
     <string>$BUNDLE_ID</string>
     <key>CFBundleName</key>
     <string>$APP_NAME</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>LSUIElement</key>

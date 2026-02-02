@@ -1,7 +1,7 @@
 import Cocoa
 
 struct Config: Codable {
-    var gap: Int = 10
+    var gap: Int = 16
     var useBuiltInHyper: Bool = false  // true = Caps Lock as Hyper, false = needs Karabiner
     var bindings: [Binding] = []
 
@@ -150,7 +150,13 @@ struct Config: Codable {
 
         do {
             let data = try Data(contentsOf: configPath)
-            return try JSONDecoder().decode(Config.self, from: data)
+            var config = try JSONDecoder().decode(Config.self, from: data)
+            let normalizedGap = normalizeGap(config.gap)
+            if normalizedGap != config.gap {
+                config.gap = normalizedGap
+                config.save()
+            }
+            return config
         } catch {
             print("⚠️  Config parse error: \(error.localizedDescription)")
             print("⚠️  Using default config. Fix \(configPath.path) to restore your settings.")
@@ -170,7 +176,7 @@ struct Config: Codable {
         let hyper: [String] = ["cmd", "alt", "ctrl", "shift"]
 
         return Config(
-            gap: 10,
+            gap: 16,
             bindings: [
                 // Apps (matching your AeroSpace config)
                 Binding(id: "toggle-ghostty", key: "e", modifiers: hyper,
@@ -207,6 +213,12 @@ struct Config: Codable {
                        action: .focusDisplay(index: 1)),
             ]
         )
+    }
+
+    private static func normalizeGap(_ value: Int) -> Int {
+        if value == 0 { return 0 }
+        if value % 8 == 0 { return value }
+        return 16
     }
 }
 

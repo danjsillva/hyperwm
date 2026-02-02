@@ -180,6 +180,6 @@
       ]
     }
   ],
-  "gap" : 10,
+  "gap" : 16,
   "useBuiltInHyper" : true
 }

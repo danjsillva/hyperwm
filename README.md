@@ -86,11 +86,11 @@ The Hyper key is **Caps Lock** when "Use Built-in Hyper" is enabled, or **Cmd+Al
 
 ## Configuration
 
-Edit `config.json` to customize bindings:
+Edit `config.json` to customize bindings. Gap values are multiples of 8 (8, 16, 24, ...), with a default of 16px. The "Show Active Window Border" toggle is off by default.
 
 ```json
 {
-  "gap": 10,
+  "gap": 16,
   "useBuiltInHyper": true,
   "bindings": [
     {
