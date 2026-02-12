@@ -14,6 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         windowManager = WindowManager()
         windowManager.gap = config.gap
+        windowManager.hideTopGap = config.hideTopGap
 
         hotkeyManager = HotkeyManager { [weak self] hotkey in
             self?.handleHotkey(hotkey)
@@ -98,6 +99,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let hyperItem = NSMenuItem(title: "Use Built-In Hyper (Caps Lock)", action: #selector(toggleBuiltInHyper), keyEquivalent: "")
         hyperItem.state = config.useBuiltInHyper ? .on : .off
         menu.addItem(hyperItem)
+
+        let hideTopGapItem = NSMenuItem(title: "Hide Top Gap", action: #selector(toggleHideTopGap), keyEquivalent: "")
+        hideTopGapItem.state = config.hideTopGap ? .on : .off
+        menu.addItem(hideTopGapItem)
 
         let focusItem = NSMenuItem(title: "Focus Follows Mouse", action: #selector(toggleFocusFollowsMouse), keyEquivalent: "")
         focusItem.state = .off
@@ -279,6 +284,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
+    @objc private func toggleHideTopGap(_ sender: NSMenuItem) {
+        config.hideTopGap.toggle()
+        windowManager.hideTopGap = config.hideTopGap
+        sender.state = config.hideTopGap ? .on : .off
+        config.save()
+        windowManager.retileAllScreens()
+    }
+
     @objc private func toggleFocusFollowsMouse(_ sender: NSMenuItem) {
         windowManager.focusFollowsMouse.toggle()
         sender.state = windowManager.focusFollowsMouse ? .on : .off
@@ -345,6 +358,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Apply all settings
         windowManager.gap = config.gap
+        windowManager.hideTopGap = config.hideTopGap
         windowManager.borderEnabled = false
         windowManager.focusFollowsMouse = false
         windowManager.setLayoutModeForAllDisplays(.full)
@@ -354,6 +368,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Update menu states
         updateGapsMenuState()
         updateHyperMenuState()
+        updateHideTopGapMenuState()
         updateLayoutMenuState()
         updateBorderMenuState()
         updateFocusFollowsMouseMenuState()
@@ -386,6 +401,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let menu = statusItem.menu,
               let borderItem = menu.item(withTitle: "Show Active Window Border") else { return }
         borderItem.state = windowManager.borderEnabled ? .on : .off
+    }
+
+    private func updateHideTopGapMenuState() {
+        guard let menu = statusItem.menu,
+              let item = menu.item(withTitle: "Hide Top Gap") else { return }
+        item.state = config.hideTopGap ? .on : .off
     }
 
     private func updateFocusFollowsMouseMenuState() {

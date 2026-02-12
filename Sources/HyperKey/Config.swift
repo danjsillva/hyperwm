@@ -3,6 +3,7 @@ import Cocoa
 struct Config: Codable {
     var gap: Int = 16
     var useBuiltInHyper: Bool = false  // true = Caps Lock as Hyper, false = needs Karabiner
+    var hideTopGap: Bool = false
     var bindings: [Binding] = []
 
     struct Binding: Codable {

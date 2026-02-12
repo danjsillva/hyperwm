@@ -35,6 +35,7 @@ enum LayoutMode {
 class WindowManager {
     private var modePerDisplay: [Int: LayoutMode] = [:]  // Layout mode per display index
     var gap: Int = 16
+    var hideTopGap: Bool = false
 
     func getMode(forDisplay index: Int) -> LayoutMode {
         modePerDisplay[index] ?? .full
@@ -49,7 +50,7 @@ class WindowManager {
     var currentDisplayIndex: Int {
         let mouseLocation = NSEvent.mouseLocation
         guard let focusedScreen = NSScreen.screens.first(where: { screen in
-            mouseLocation.x >= screen.frame.minX && mouseLocation.x < screen.frame.maxX
+            screen.frame.contains(mouseLocation)
         }) else { return 0 }
         return NSScreen.screens.firstIndex(of: focusedScreen) ?? 0
     }
@@ -168,9 +169,12 @@ class WindowManager {
     // PERFORMANCE: Event-driven retiling instead of constant timer
     private var retileScheduled = false
 
-    // AX Observer for window move/resize events (replaces polling timer)
+    // AX Observer for window move/resize/destroy events on focused window
     private var windowObserver: AXObserver?
     private var observedWindow: AXUIElement?
+
+    // AX Observers per app for window create/destroy/focus events
+    private var appObservers: [pid_t: AXObserver] = [:]
 
     // PERFORMANCE: Cache regular apps and PID mapping (updated on app launch/terminate)
     private var regularAppsCache: [NSRunningApplication] = []
@@ -225,14 +229,18 @@ class WindowManager {
     }
 
     deinit {
-        // Cleanup AX Observer
+        // Cleanup focused window AX Observer
         if let observer = windowObserver {
             if let window = observedWindow {
                 AXObserverRemoveNotification(observer, window, kAXMovedNotification as CFString)
                 AXObserverRemoveNotification(observer, window, kAXResizedNotification as CFString)
+                AXObserverRemoveNotification(observer, window, kAXUIElementDestroyedNotification as CFString)
             }
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
         }
+
+        // Cleanup app-level AX Observers
+        cleanupAppObservers()
 
         // Cleanup NotificationCenter observers
         NotificationCenter.default.removeObserver(self)
@@ -346,8 +354,9 @@ class WindowManager {
         // Initial retile
         scheduleRetile()
 
-        // Setup AX observer for focused window (replaces polling timer)
-        setupWindowObserver()
+        // Setup AX observers
+        setupWindowObserver()   // Focused window: move/resize/destroy
+        setupAppObservers()     // All apps: window create/focus change
     }
 
     // MARK: - AX Observer (Event-driven window move/resize detection)
@@ -375,9 +384,10 @@ class WindowManager {
 
         let windowElement = window as! AXUIElement
 
-        // Register for move and resize notifications (no refcon needed - using NotificationCenter)
+        // Register for move, resize, and destroy notifications (no refcon needed - using NotificationCenter)
         AXObserverAddNotification(observer, windowElement, kAXMovedNotification as CFString, nil)
         AXObserverAddNotification(observer, windowElement, kAXResizedNotification as CFString, nil)
+        AXObserverAddNotification(observer, windowElement, kAXUIElementDestroyedNotification as CFString, nil)
 
         // Add observer to run loop
         CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
@@ -393,6 +403,7 @@ class WindowManager {
             if let oldWindow = observedWindow {
                 AXObserverRemoveNotification(oldObserver, oldWindow, kAXMovedNotification as CFString)
                 AXObserverRemoveNotification(oldObserver, oldWindow, kAXResizedNotification as CFString)
+                AXObserverRemoveNotification(oldObserver, oldWindow, kAXUIElementDestroyedNotification as CFString)
             }
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(oldObserver), .commonModes)
         }
@@ -401,6 +412,39 @@ class WindowManager {
 
         // Setup new observer for current focused window
         setupWindowObserver()
+    }
+
+    // MARK: - App-Level AX Observers (window create/focus change)
+
+    private func setupAppObservers() {
+        cleanupAppObservers()
+        refreshAppsCacheIfNeeded()
+
+        for app in regularAppsCache {
+            let pid = app.processIdentifier
+            var observer: AXObserver?
+            let result = AXObserverCreate(pid, { (_, _, _, _) in
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .windowManagerNeedsRetile, object: nil)
+                }
+            }, &observer)
+
+            guard result == .success, let observer = observer else { continue }
+
+            let appElement = AXUIElementCreateApplication(pid)
+            AXObserverAddNotification(observer, appElement, kAXWindowCreatedNotification as CFString, nil)
+            AXObserverAddNotification(observer, appElement, kAXFocusedWindowChangedNotification as CFString, nil)
+
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+            appObservers[pid] = observer
+        }
+    }
+
+    private func cleanupAppObservers() {
+        for (_, observer) in appObservers {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+        }
+        appObservers.removeAll()
     }
 
     @objc private func handleWindowChangeNotification() {
@@ -414,6 +458,7 @@ class WindowManager {
 
     @objc private func appsChanged() {
         invalidateAppsCache()
+        setupAppObservers()
         scheduleRetile()
     }
 
@@ -434,6 +479,7 @@ class WindowManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + Timing.activationDelay) { [weak self] in
             self?.updateBorder()
             self?.updateWindowObserver()  // Track new focused window for move/resize
+            self?.scheduleRetile()  // Enforce layout on focus change
         }
     }
 
@@ -1027,14 +1073,15 @@ class WindowManager {
         let mode = getMode(forDisplay: screenIndex)
 
         let g = CGFloat(gap)
+        let topG: CGFloat = hideTopGap ? 0 : g
         let visibleFrame = screen.visibleFrame
         let axY = mainScreenHeight - visibleFrame.maxY
 
         let bounds = CGRect(
             x: visibleFrame.origin.x + g,
-            y: axY + g,
+            y: axY + topG,
             width: visibleFrame.width - 2 * g,
-            height: visibleFrame.height - 2 * g
+            height: visibleFrame.height - g - topG
         )
 
         let frames: [CGRect]
@@ -1087,14 +1134,15 @@ class WindowManager {
 
     private func maximizeWindowOnScreen(_ window: AXUIElement, screen: NSScreen) {
         let g = CGFloat(gap)
+        let topG: CGFloat = hideTopGap ? 0 : g
         let visibleFrame = screen.visibleFrame
         let axY = mainScreenHeight - visibleFrame.maxY
 
         setWindowFrame(window, frame: CGRect(
             x: visibleFrame.origin.x + g,
-            y: axY + g,
+            y: axY + topG,
             width: visibleFrame.width - 2 * g,
-            height: visibleFrame.height - 2 * g
+            height: visibleFrame.height - g - topG
         ))
     }
 
@@ -1123,6 +1171,10 @@ class WindowManager {
         var windows: [AXUIElement] = []
 
         for app in regularAppsCache {
+            // Skip hidden apps - their windows still report valid frames via AX API
+            // but aren't visible, causing ghost windows in BSP layout
+            guard !app.isHidden else { continue }
+
             let appElement = AXUIElementCreateApplication(app.processIdentifier)
             var windowsRef: CFTypeRef?
             guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
