@@ -558,7 +558,7 @@ class WindowManager {
 
         if app.isActive {
             app.hide()
-            scheduleRetile()  // Retile handles border update via enforceLayout
+            scheduleRetile()
         } else {
             if app.isHidden { app.unhide() }
             unminimizeWindows(for: app)
@@ -567,11 +567,11 @@ class WindowManager {
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
                let windows = windowsRef as? [AXUIElement], let window = windows.first {
-                maximizeWindowOnScreen(window, screen: targetScreen)
+                moveWindowToScreen(window, screen: targetScreen)
             }
 
             app.activate(options: [.activateIgnoringOtherApps])
-            scheduleRetile()  // Retile handles border update via enforceLayout
+            enforceLayout()
         }
     }
 
@@ -651,11 +651,11 @@ class WindowManager {
         } else {
             // SHOW: Bring this profile to front
             if braveApp.isHidden { braveApp.unhide() }
-            maximizeWindowOnScreen(targetWindow, screen: targetScreen)
+            moveWindowToScreen(targetWindow, screen: targetScreen)
             AXUIElementPerformAction(targetWindow, kAXRaiseAction as CFString)
             braveApp.activate(options: [.activateIgnoringOtherApps])
         }
-        scheduleRetile()  // Handles border update via enforceLayout
+        enforceLayout()
     }
 
     private func isMinimized(_ window: AXUIElement) -> Bool {
@@ -806,11 +806,11 @@ class WindowManager {
             if isMinimized(targetWindow) {
                 AXUIElementSetAttributeValue(targetWindow, kAXMinimizedAttribute as CFString, false as CFTypeRef)
             }
-            maximizeWindowOnScreen(targetWindow, screen: targetScreen)
+            moveWindowToScreen(targetWindow, screen: targetScreen)
             AXUIElementPerformAction(targetWindow, kAXRaiseAction as CFString)
             safariApp.activate(options: [.activateIgnoringOtherApps])
         }
-        scheduleRetile()
+        enforceLayout()
     }
 
     private func launchSafariProfile(profile: String, on screen: NSScreen) {
@@ -1131,6 +1131,21 @@ class WindowManager {
     }
 
     // MARK: - Helpers
+
+    private func moveWindowToScreen(_ window: AXUIElement, screen: NSScreen) {
+        let frame = getWindowFrame(window)
+        let visibleFrame = screen.visibleFrame
+        let nsPoint = CGPoint(x: frame.midX, y: mainScreenHeight - frame.midY)
+        if visibleFrame.contains(nsPoint) { return }
+
+        var position = CGPoint(
+            x: visibleFrame.origin.x + visibleFrame.width / 2 - frame.width / 2,
+            y: mainScreenHeight - visibleFrame.maxY + visibleFrame.height / 2 - frame.height / 2
+        )
+        if let posValue = AXValueCreate(.cgPoint, &position) {
+            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
+        }
+    }
 
     private func maximizeWindowOnScreen(_ window: AXUIElement, screen: NSScreen) {
         let g = CGFloat(gap)
