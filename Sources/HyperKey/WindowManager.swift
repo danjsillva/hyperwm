@@ -565,13 +565,21 @@ class WindowManager {
 
             let appElement = AXUIElementCreateApplication(app.processIdentifier)
             var windowsRef: CFTypeRef?
-            if AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], let window = windows.first {
-                moveWindowToScreen(window, screen: targetScreen)
-            }
+            let windows = (AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success)
+                ? (windowsRef as? [AXUIElement] ?? [])
+                : []
 
-            app.activate(options: [.activateIgnoringOtherApps])
-            enforceLayout()
+            if let window = windows.first {
+                moveWindowToScreen(window, screen: targetScreen)
+                app.activate(options: [.activateIgnoringOtherApps])
+                enforceLayout()
+            } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                // App running but no windows (e.g. Finder) — open a new window
+                NSWorkspace.shared.open(url)
+                DispatchQueue.main.asyncAfter(deadline: .now() + Timing.launchDelay) { [weak self] in
+                    self?.scheduleRetile()
+                }
+            }
         }
     }
 
@@ -1042,11 +1050,15 @@ class WindowManager {
 
         let targetScreen = screens[index]
 
-        // If already on this display, toggle layout instead
+        // If already on this display: Full → hide all + go to BSP; BSP → go to Full
         if currentDisplayIndex == index {
             let currentMode = getMode(forDisplay: index)
-            let newMode: LayoutMode = currentMode == .full ? .bsp : .full
-            setMode(newMode, forDisplay: index)
+            if currentMode == .full {
+                hideAllAppsOnScreen(targetScreen)
+                setMode(.bsp, forDisplay: index)
+            } else {
+                setMode(.full, forDisplay: index)
+            }
             return
         }
 
@@ -1061,6 +1073,41 @@ class WindowManager {
         }
 
         moveMouse(to: targetScreen)
+    }
+
+    // MARK: - Hide All Apps On Screen
+
+    private func hideAllAppsOnScreen(_ screen: NSScreen) {
+        refreshAppsCacheIfNeeded()
+
+        for app in regularAppsCache {
+            guard !app.isHidden else { continue }
+
+            let appElement = AXUIElementCreateApplication(app.processIdentifier)
+            var windowsRef: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+                  let windows = windowsRef as? [AXUIElement] else { continue }
+
+            let standardWindows = windows.filter { isStandardWindow($0) }
+            let windowsOnScreen = standardWindows.filter { window in
+                let frame = getWindowFrame(window)
+                guard frame.width > 0 && frame.height > 0 else { return false }
+                return screenContaining(axPoint: CGPoint(x: frame.midX, y: frame.midY)) == screen
+            }
+
+            guard !windowsOnScreen.isEmpty else { continue }
+
+            // Apps with multiple windows (e.g. Safari profiles): minimize individually
+            // so that window titles remain accessible via AX API when re-showing a specific window.
+            // Single-window apps: hide the app (cleaner, no dock animation).
+            if standardWindows.count > 1 {
+                for window in windowsOnScreen {
+                    AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, true as CFTypeRef)
+                }
+            } else {
+                app.hide()
+            }
+        }
     }
 
     // MARK: - Retile Screen
