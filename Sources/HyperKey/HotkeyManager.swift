@@ -5,6 +5,7 @@ import IOKit
 // Global storage for hotkey specs (accessed from C callback)
 private var globalHotkeys: [HotkeyManager.HotkeySpec] = []
 private var globalUseBuiltInHyper: Bool = false
+private var globalEventTap: CFMachPort?
 
 // F18 as Hyper key (Caps Lock is remapped to F18 via hidutil)
 private let kF18KeyCode: UInt16 = 79  // F18 keycode on macOS
@@ -108,6 +109,7 @@ class HotkeyManager {
         }
 
         eventTap = tap
+        globalEventTap = tap
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
@@ -125,6 +127,7 @@ class HotkeyManager {
         }
         eventTap = nil
         runLoopSource = nil
+        globalEventTap = nil
 
         _ = setupEventTap()
         hotkeys = savedHotkeys
@@ -143,6 +146,7 @@ class HotkeyManager {
         }
         eventTap = nil
         runLoopSource = nil
+        globalEventTap = nil
         globalHotkeys = []
         hyperKeyDown = false
         hyperKeyUsedAsModifier = false
@@ -173,6 +177,16 @@ private func hotkeyEventCallback(
     event: CGEvent,
     refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
+
+    switch type {
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+        if let tap = globalEventTap {
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
+        return Unmanaged.passUnretained(event)
+    default:
+        break
+    }
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
