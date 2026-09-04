@@ -2,7 +2,7 @@ import Cocoa
 
 struct Config: Codable {
     var gap: Int = 16
-    var useBuiltInHyper: Bool = false  // true = Caps Lock as Hyper, false = needs Karabiner
+    var useBuiltInHyper: Bool = false  // true = Caps Lock as Hyper, false = use Cmd+Alt+Ctrl+Shift
     var hideTopGap: Bool = false
     var bindings: [Binding] = []
 
@@ -138,34 +138,66 @@ struct Config: Codable {
         }
     }
 
-    static let configPath = FileManager.default.homeDirectoryForCurrentUser
+    static let configDirectory = FileManager.default.urls(
+        for: .applicationSupportDirectory,
+        in: .userDomainMask
+    )[0].appendingPathComponent("HyperWM", isDirectory: true)
+
+    static let configPath = configDirectory.appendingPathComponent("config.json")
+
+    static let legacyConfigPath = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Projects/bless/hyperwm/config.json")
 
+    private static func ensureConfigDirectoryExists() {
+        try? FileManager.default.createDirectory(
+            at: configDirectory,
+            withIntermediateDirectories: true
+        )
+    }
+
     static func load() -> Config {
-        guard FileManager.default.fileExists(atPath: configPath.path) else {
-            print("No config found at \(configPath.path), creating default")
-            let defaultConfig = createDefault()
-            defaultConfig.save()
-            return defaultConfig
+        if FileManager.default.fileExists(atPath: configPath.path) {
+            return loadConfig(at: configPath) ?? createAndSaveDefault()
         }
 
+        if FileManager.default.fileExists(atPath: legacyConfigPath.path) {
+            print("Migrating config from legacy path: \(legacyConfigPath.path)")
+            return loadConfig(at: legacyConfigPath) ?? createAndSaveDefault()
+        }
+
+        print("No config found at \(configPath.path), creating default")
+        return createAndSaveDefault()
+    }
+
+    private static func loadConfig(at url: URL) -> Config? {
         do {
-            let data = try Data(contentsOf: configPath)
+            ensureConfigDirectoryExists()
+            let data = try Data(contentsOf: url)
             var config = try JSONDecoder().decode(Config.self, from: data)
             let normalizedGap = normalizeGap(config.gap)
             if normalizedGap != config.gap {
                 config.gap = normalizedGap
                 config.save()
             }
+            if url != configPath {
+                config.save()
+            }
             return config
         } catch {
             print("⚠️  Config parse error: \(error.localizedDescription)")
             print("⚠️  Using default config. Fix \(configPath.path) to restore your settings.")
-            return createDefault()
+            return nil
         }
     }
 
+    private static func createAndSaveDefault() -> Config {
+        let defaultConfig = createDefault()
+        defaultConfig.save()
+        return defaultConfig
+    }
+
     func save() {
+        Config.ensureConfigDirectoryExists()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let data = try? encoder.encode(self) {
@@ -193,11 +225,9 @@ struct Config: Codable {
                 Binding(id: "toggle-finder", key: "f", modifiers: hyper,
                        action: .toggleApp(bundleId: "com.apple.finder")),
 
-                // Safari profiles
+                // Safari profile
                 Binding(id: "toggle-safari-personal", key: "q", modifiers: hyper,
                        action: .toggleSafariProfile(profile: "P")),
-                Binding(id: "toggle-safari-work", key: "w", modifiers: hyper,
-                       action: .toggleSafariProfile(profile: "B")),
 
                 // Window management
                 Binding(id: "next-screen", key: "space", modifiers: hyper,

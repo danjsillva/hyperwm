@@ -100,20 +100,6 @@
     },
     {
       "action" : {
-        "profile" : "B",
-        "type" : "toggleSafariProfile"
-      },
-      "id" : "toggle-safari-work",
-      "key" : "w",
-      "modifiers" : [
-        "cmd",
-        "alt",
-        "ctrl",
-        "shift"
-      ]
-    },
-    {
-      "action" : {
         "type" : "moveToNextScreen"
       },
       "id" : "next-screen",
@@ -181,6 +167,6 @@
     }
   ],
   "gap" : 16,
-  "hideTopGap" : true,
+  "hideTopGap" : false,
   "useBuiltInHyper" : true
 }

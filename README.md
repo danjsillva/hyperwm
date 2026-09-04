@@ -34,7 +34,7 @@ After years of workarounds and compromises, I decided to build exactly what I ne
 ## Features
 
 - **Two layout modes**: Full (stacked maximized) and Master-Stack (BSP-like)
-- **Hyper key**: Built-in Caps Lock → Hyper (Cmd+Alt+Ctrl+Shift) via hidutil
+- **Hyper key**: Built-in Caps Lock → Hyper, or use Cmd+Alt+Ctrl+Shift directly
 - **Per-app toggle**: Show/hide apps with single hotkey
 - **Brave profile support**: Separate hotkeys for different browser profiles
 - **Multi-display**: Move windows between displays, focus displays by number
@@ -65,7 +65,7 @@ open ~/Applications/HyperWM.app
 
 ## Hotkeys (Hyper + key)
 
-The Hyper key is **Caps Lock** when "Use Built-in Hyper" is enabled, or **Cmd+Alt+Ctrl+Shift** with Karabiner.
+The Hyper key is **Caps Lock** when "Use Built-in Hyper" is enabled, or **Cmd+Alt+Ctrl+Shift** directly when it is disabled.
 
 | Key | Action |
 |-----|--------|
@@ -75,23 +75,23 @@ The Hyper key is **Caps Lock** when "Use Built-in Hyper" is enabled, or **Cmd+Al
 | `S` | Toggle Reminders |
 | `D` | Toggle Notes |
 | `F` | Toggle Finder |
-| `Q` | Toggle Brave (Personal) |
-| `W` | Toggle Brave (Work) |
+| `Q` | Toggle Safari (Personal) |
 | `Space` | Move window to other display |
 | `Tab` | Cycle windows on current display |
-| `` ` `` | Toggle layout mode |
-| `T` | Toggle float (exclude from tiling) |
+| `` ` `` | Toggle float (exclude from tiling) |
 | `1` | Focus display 1 |
 | `2` | Focus display 2 |
 
+`W` is currently unassigned in the default preset. Layout mode is available from the menu bar, or you can add a custom `toggleLayoutMode` binding in `config.json`.
+
 ## Configuration
 
-Edit `config.json` to customize bindings. Gap values are multiples of 8 (8, 16, 24, ...), with a default of 16px. The "Show Active Window Border" toggle is off by default.
+Edit `~/Library/Application Support/HyperWM/config.json` to customize bindings. Gap values are multiples of 8 (0, 8, 16, 24, 32, ...), with a default of 16px. The "Show Active Window Border" toggle is off by default.
 
 ```json
 {
   "gap": 16,
-  "useBuiltInHyper": true,
+  "useBuiltInHyper": false,
   "bindings": [
     {
       "id": "toggle-terminal",
@@ -150,7 +150,7 @@ Click the status icon (shows display + mode, e.g., "1F"):
 - **Focus Follows Mouse** - Focus window under cursor
 - **Launch at Login** - Auto-start on boot
 - **Layout** - Full / BSP
-- **Gaps** - 0 / 5 / 10 / 15 / 20 px
+- **Gaps** - 0 / 8 / 16 / 24 / 32 px
 - **Reload Config** / **Restart** / **Quit**
 
 ## Technical Details
